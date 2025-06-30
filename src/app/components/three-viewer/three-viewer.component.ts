@@ -78,11 +78,16 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
 
     // Directional Light with Shadows
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 10, 7.5);
+    directionalLight.position.set(2, 4, 2);
     directionalLight.castShadow = true;
+    directionalLight.shadow.bias = -0.0005;
     directionalLight.shadow.mapSize.set(2048, 2048);
-    directionalLight.shadow.bias = -0.001;
-    this.scene.add(directionalLight);
+    directionalLight.shadow.camera.left = -3;
+    directionalLight.shadow.camera.right = 3;
+    directionalLight.shadow.camera.top = 3;
+    directionalLight.shadow.camera.bottom = -3;
+    directionalLight.shadow.camera.near = 0.1;
+    directionalLight.shadow.camera.far = 10;
 
     // Ambient Light
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
@@ -162,7 +167,7 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
         this.composer.addPass(renderPass);
 
         const saoPass = new SAOPass(this.scene, this.camera);
-        saoPass.params.saoIntensity = 0.02;
+        saoPass.params.saoIntensity = 0.05; // increase for stronger effect
         saoPass.params.saoScale = 100;
         saoPass.params.saoKernelRadius = 32;
         saoPass.params.saoMinResolution = 0;
