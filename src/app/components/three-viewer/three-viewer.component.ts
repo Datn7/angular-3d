@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 @Component({
   selector: 'app-three-viewer',
@@ -57,22 +58,37 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
       0.1,
       1000
     );
-    this.camera.position.z = 2;
+    this.camera.position.set(0, 0, 2);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(this.renderer.domElement);
 
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(5, 5, 5);
-    this.scene.add(light);
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    // Lighting
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 5, 5);
+    this.scene.add(directionalLight);
 
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-    this.scene.add(cube);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    this.scene.add(ambientLight);
 
+    // Load GLB Model
+    const loader = new GLTFLoader();
+    loader.load(
+      '/assets/helmet.glb',
+      (gltf) => {
+        this.scene.add(gltf.scene);
+        console.log('GLB loaded successfully');
+      },
+      (progress) => {
+        console.log(`Loading: ${(progress.loaded / progress.total) * 100}%`);
+      },
+      (error) => {
+        console.error('Error loading GLB:', error);
+      }
+    );
+
+    // Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
 
