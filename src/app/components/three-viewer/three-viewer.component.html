@@ -1,1 +1,135 @@
 <div #viewerContainer class="viewer-container"></div>
+
+<!-- Right-side modern UI panel -->
+<div class="ui-panel">
+  <div
+    class="fixed right-0 top-0 h-full w-1/5 bg-gray-900 text-white shadow-lg p-6 overflow-y-auto z-50"
+  >
+    <h2 class="text-xl font-bold mb-4">Controls</h2>
+
+    <!-- Light Intensity -->
+    <div class="mb-4">
+      <label class="block mb-1">Light Intensity: {{ lightIntensity }}</label>
+      <input
+        type="range"
+        min="0"
+        max="5"
+        step="0.1"
+        [(ngModel)]="lightIntensity"
+        (input)="updateScene()"
+        class="w-full"
+      />
+    </div>
+
+    <!-- SAO Intensity -->
+    <div class="mb-4">
+      <label class="block mb-1">SAO Intensity: {{ saoIntensity }}</label>
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        [(ngModel)]="saoIntensity"
+        (input)="updateScene()"
+        class="w-full"
+      />
+    </div>
+
+    <!-- EnvMap Intensity -->
+    <div class="mb-4">
+      <label class="block mb-1">EnvMap Intensity: {{ envMapIntensity }}</label>
+      <input
+        type="range"
+        min="0"
+        max="5"
+        step="0.1"
+        [(ngModel)]="envMapIntensity"
+        (input)="updateScene()"
+        class="w-full"
+      />
+    </div>
+
+    <!-- Helmet Y Rotation -->
+    <div class="mb-4">
+      <label class="block mb-1">Helmet Y Rotation: {{ helmetRotationY }}</label>
+      <input
+        type="range"
+        min="-3.14"
+        max="3.14"
+        step="0.01"
+        [(ngModel)]="helmetRotationY"
+        (input)="updateScene()"
+        class="w-full"
+      />
+    </div>
+
+    <!-- Exposure -->
+    <div class="mb-4">
+      <label class="block mb-1">Exposure: {{ exposure }}</label>
+      <input
+        type="range"
+        min="0.1"
+        max="3"
+        step="0.01"
+        [(ngModel)]="exposure"
+        (input)="updateScene()"
+        class="w-full"
+      />
+    </div>
+
+    <!-- Light Color -->
+    <div class="mb-4">
+      <label class="block mb-1">Light Color</label>
+      <input
+        type="color"
+        [(ngModel)]="lightColor"
+        (input)="updateScene()"
+        class="w-full h-10 p-0 border-none"
+      />
+    </div>
+
+    <!-- Enable Toggles -->
+    <div class="mb-4 flex items-center space-x-4">
+      <label class="inline-flex items-center">
+        <input
+          type="checkbox"
+          [(ngModel)]="enableSAO"
+          (change)="updateScene()"
+          class="mr-2"
+        />
+        Enable SAO
+      </label>
+
+      <label class="inline-flex items-center">
+        <input
+          type="checkbox"
+          [(ngModel)]="enableShadows"
+          (change)="updateScene()"
+          class="mr-2"
+        />
+        Enable Shadows
+      </label>
+    </div>
+
+    <!-- Tone Mapping -->
+    <div class="mb-4">
+      <label class="block mb-1">Tone Mapping</label>
+      <select
+        [(ngModel)]="toneMapping"
+        (change)="updateScene()"
+        class="w-full text-black p-2 rounded"
+      >
+        <option value="ACESFilmic">ACESFilmic</option>
+        <option value="Linear">Linear</option>
+        <option value="Reinhard">Reinhard</option>
+        <option value="Cineon">Cineon</option>
+        <option value="NoToneMapping">None</option>
+      </select>
+    </div>
+
+    <!-- Debug -->
+    <pre class="mt-4 text-xs bg-gray-800 p-2 rounded overflow-x-auto">{{
+      debugData | json
+    }}</pre>
+  </div>
+</div>

@@ -1,10 +1,125 @@
+/* Ensure host container takes full screen and aligns children */
 :host {
-  display: block;
+  display: flex;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
+/* Three.js canvas container (80% left) */
 .viewer-container {
-  width: 100%;
+  flex: 1 1 80%;
   height: 100%;
+  overflow: hidden;
+}
+
+/* Right-side UI panel (20% fixed width) */
+.ui-panel {
+  width: 20%;
+  min-width: 250px;
+  max-width: 400px;
+  background-color: #1f2937; /* gray-800 */
+  color: #f9fafb; /* gray-100 */
+  padding: 1rem;
+  overflow-y: auto;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+  font-family: "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Headings */
+h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* Label styling */
+label {
+  font-size: 0.9rem;
+  color: #e5e7eb; /* gray-200 */
+  margin-top: 0.5rem;
+}
+
+/* Sliders */
+input[type="range"] {
+  width: 100%;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: #4b5563; /* gray-600 */
+  outline: none;
+  transition: background 0.3s;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6; /* blue-500 */
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+}
+
+/* Color picker styling */
+input[type="color"] {
+  width: 100%;
+  height: 2rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+/* Checkboxes */
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+input[type="checkbox"] {
+  accent-color: #3b82f6;
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
+/* Select dropdown styling */
+select {
+  width: 100%;
+  padding: 0.4rem;
+  border-radius: 0.375rem;
+  border: none;
+  background-color: #374151; /* gray-700 */
+  color: #f9fafb;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+select:focus {
+  outline: 2px solid #3b82f6;
+}
+
+/* Debug JSON viewer */
+pre {
+  background-color: #111827; /* gray-900 */
+  color: #d1d5db; /* gray-300 */
+  font-size: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  max-height: 200px;
+  margin-top: 1rem;
 }
