@@ -35,6 +35,7 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
   private controls!: OrbitControls;
   private animationId!: number;
   private directionalLight!: THREE.DirectionalLight;
+  private model!: THREE.Object3D;
 
   private composer!: EffectComposer;
   private saoPass!: SAOPass;
@@ -141,6 +142,7 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
         }
       });
       this.scene.add(model);
+      this.model = model;
 
       const box = new THREE.Box3().setFromObject(model);
       const size = new THREE.Vector3();
@@ -222,6 +224,10 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
         toneMappingExposure: this.renderer.toneMappingExposure,
       },
     };
+
+    if (this.model) {
+      this.model.rotation.y = this.helmetRotationY;
+    }
   }
 
   private onWindowResize = () => {
