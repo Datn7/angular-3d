@@ -35,7 +35,6 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
   private animationId!: number;
 
   private composer!: EffectComposer;
-  private ssaoPass!: SAOPass;
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
 
@@ -69,7 +68,6 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
     this.camera.position.set(0, 0, 2);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setClearColor(0x000000); // black background
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.toneMapping = ACESFilmicToneMapping;
@@ -78,28 +76,38 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
 
-    // Lighting
+    // Directional Light with Shadows
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(5, 10, 7.5);
     directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.set(2048, 2048);
     directionalLight.shadow.bias = -0.001;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.radius = 4;
     this.scene.add(directionalLight);
 
+    // Ambient Light
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     this.scene.add(ambientLight);
 
-    // HDR Environment
+    // Load background cubemap
+    const cubeLoader = new THREE.CubeTextureLoader();
+    const bgTexture = cubeLoader.load([
+      '/assets/cubemap/px.png',
+      '/assets/cubemap/nx.png',
+      '/assets/cubemap/py.png',
+      '/assets/cubemap/ny.png',
+      '/assets/cubemap/pz.png',
+      '/assets/cubemap/nz.png',
+    ]);
+    this.scene.background = bgTexture; // visible background
+
+    // Load HDR environment for reflections
     const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
     pmremGenerator.compileEquirectangularShader();
 
     const rgbeLoader = new RGBELoader();
     rgbeLoader.load('/assets/twilight_sunset_1k.hdr', (texture) => {
       const envMap = pmremGenerator.fromEquirectangular(texture).texture;
-      this.scene.environment = envMap;
-      // Do not set as background, keep it black for SSAO
+      this.scene.environment = envMap; // reflections
       texture.dispose();
       pmremGenerator.dispose();
 
@@ -108,7 +116,6 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
-    this.controls.target.set(0, 0, 0);
 
     window.addEventListener('resize', this.onWindowResize);
   }
@@ -165,7 +172,9 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
         saoPass.params.saoBlurDepthCutoff = 0.01;
         this.composer.addPass(saoPass);
 
-        console.log('Helmet loaded with SAO and shadows.');
+        console.log(
+          'Helmet loaded, centered, with SAO, HDR reflections, and background.'
+        );
       },
       (progress) => {
         console.log(`Loading: ${(progress.loaded / progress.total) * 100}%`);
