@@ -36,6 +36,7 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
   private animationId!: number;
   private directionalLight!: THREE.DirectionalLight;
   private model!: THREE.Object3D;
+  private particleSystem!: THREE.Points;
 
   private composer!: EffectComposer;
   private saoPass!: SAOPass;
@@ -126,6 +127,8 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
       this.loadModel();
     });
 
+    this.addParticles();
+
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     window.addEventListener('resize', this.onWindowResize);
@@ -177,6 +180,43 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
 
       this.updateScene();
     });
+  }
+
+  private addParticles(count: number = 300): void {
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    const sizes = [];
+
+    const color = new THREE.Color(0x00ffff); // Neon cyan
+
+    for (let i = 0; i < count; i++) {
+      const x = THREE.MathUtils.randFloatSpread(1000);
+      const y = THREE.MathUtils.randFloatSpread(500) + 200;
+      const z = THREE.MathUtils.randFloatSpread(1000);
+
+      positions.push(x, y, z);
+      colors.push(color.r, color.g, color.b);
+      sizes.push(Math.random() * 0.05 + 0.02);
+    }
+
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(positions, 3)
+    );
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.5,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+    });
+
+    this.particleSystem = new THREE.Points(geometry, material);
+    this.scene.add(this.particleSystem);
   }
 
   updateScene(): void {
@@ -243,6 +283,21 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
   private animate = () => {
     this.animationId = requestAnimationFrame(this.animate);
     this.controls.update();
+
+    // Animate particles
+    if (this.particleSystem) {
+      const positions = this.particleSystem.geometry.attributes[
+        'position'
+      ] as THREE.BufferAttribute;
+      for (let i = 0; i < positions.count; i++) {
+        positions.setY(i, positions.getY(i) + 0.1); // slow upward drift
+        if (positions.getY(i) > 150) {
+          positions.setY(i, -2); // reset to bottom
+        }
+      }
+      positions.needsUpdate = true;
+    }
+
     if (this.composer) {
       this.composer.render();
     } else {
