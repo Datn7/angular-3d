@@ -11,6 +11,8 @@ import {
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { ACESFilmicToneMapping, SRGBColorSpace } from 'three';
 
 @Component({
   selector: 'app-three-viewer',
@@ -50,10 +52,9 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
     const container = this.viewerContainer.nativeElement;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x222222);
 
     this.camera = new THREE.PerspectiveCamera(
-      75,
+      60,
       container.clientWidth / container.clientHeight,
       0.1,
       1000
@@ -62,37 +63,78 @@ export class ThreeViewerComponent implements OnInit, OnDestroy {
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.outputColorSpace = SRGBColorSpace;
+    this.renderer.toneMapping = ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1;
     container.appendChild(this.renderer.domElement);
 
-    // Lighting
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 5, 5);
-    this.scene.add(directionalLight);
+    // HDR environment
+    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+    pmremGenerator.compileEquirectangularShader();
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    this.scene.add(ambientLight);
+    const rgbeLoader = new RGBELoader();
+    rgbeLoader.load('/assets/twilight_sunset_1k.hdr', (texture) => {
+      const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+      this.scene.environment = envMap;
+      this.scene.background = envMap;
+      texture.dispose();
+      pmremGenerator.dispose();
 
-    // Load GLB Model
+      this.loadModel();
+    });
+
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.target.set(0, 0, 0);
+
+    window.addEventListener('resize', this.onWindowResize);
+  }
+
+  private loadModel(): void {
     const loader = new GLTFLoader();
     loader.load(
       '/assets/helmet.glb',
       (gltf) => {
-        this.scene.add(gltf.scene);
-        console.log('GLB loaded successfully');
+        const model = gltf.scene;
+        this.scene.add(model);
+
+        // Compute bounding box
+        const box = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        // Center model
+        model.position.sub(center);
+
+        // Calculate appropriate camera distance
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = this.camera.fov * (Math.PI / 180);
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+
+        cameraZ *= 1.5; // add margin
+        this.camera.position.set(0, 0, cameraZ);
+
+        // Update near/far planes
+        const minZ = box.min.z;
+        const cameraToFarEdge = minZ < 0 ? -minZ + cameraZ : cameraZ - minZ;
+        this.camera.far = cameraToFarEdge * 3;
+        this.camera.updateProjectionMatrix();
+
+        // Update controls to focus on the model center
+        this.controls.target.copy(new THREE.Vector3(0, 0, 0));
+        this.controls.update();
+
+        console.log('Helmet model loaded, centered, and framed.');
       },
       (progress) => {
         console.log(`Loading: ${(progress.loaded / progress.total) * 100}%`);
       },
       (error) => {
-        console.error('Error loading GLB:', error);
+        console.error('Error loading helmet GLB:', error);
       }
     );
-
-    // Controls
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-
-    window.addEventListener('resize', this.onWindowResize);
   }
 
   private onWindowResize = () => {
