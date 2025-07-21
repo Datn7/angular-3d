@@ -28,6 +28,8 @@ export class HeroThreeComponent implements AfterViewInit, OnDestroy {
   private animationFrameId!: number;
   private mouse = { x: 0, y: 0 };
   private clock = new THREE.Clock();
+  private stars!: THREE.Points;
+  private fresnelShell!: THREE.Mesh;
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
 
@@ -55,25 +57,46 @@ export class HeroThreeComponent implements AfterViewInit, OnDestroy {
 
     this.scene = new THREE.Scene();
 
-    const fov = 45;
-    const aspect = canvas.clientWidth / canvas.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(
+      45,
+      canvas.clientWidth / canvas.clientHeight,
+      0.1,
+      1000
+    );
     this.camera.position.z = 5;
 
-    // Main Sphere
+    // Starfield
+    const starGeometry = new THREE.BufferGeometry();
+    const starCount = 1500;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i++) {
+      positions[i] = (Math.random() - 0.5) * 100;
+    }
+    starGeometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(positions, 3)
+    );
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xaaaaaa,
+      size: 0.2,
+    });
+    this.stars = new THREE.Points(starGeometry, starMaterial);
+    this.scene.add(this.stars);
+
+    // 💠 Base Sphere
     const baseMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ffff,
       emissive: 0x009999,
       roughness: 0.2,
       metalness: 0.9,
     });
-
-    const geometry = new THREE.SphereGeometry(1, 64, 64);
-    this.sphere = new THREE.Mesh(geometry, baseMaterial);
+    this.sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 64, 64),
+      baseMaterial
+    );
     this.scene.add(this.sphere);
 
     // Glow Shell
-    const glowGeometry = new THREE.SphereGeometry(1.1, 64, 64);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
       transparent: true,
@@ -82,9 +105,40 @@ export class HeroThreeComponent implements AfterViewInit, OnDestroy {
       side: THREE.BackSide,
       depthWrite: false,
     });
-
+    const glowGeometry = new THREE.SphereGeometry(1.1, 64, 64);
     this.glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
     this.scene.add(this.glowMesh);
+
+    // Fresnel Shell
+    const fresnelShaderMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        viewVector: { value: new THREE.Vector3() },
+        fresnelColor: { value: new THREE.Color(0x00ffff) },
+      },
+      vertexShader: `
+      varying float intensity;
+      uniform vec3 viewVector;
+      void main() {
+        vec3 vNormal = normalize(normalMatrix * normal);
+        vec3 vView = normalize(normalMatrix * viewVector);
+        intensity = pow(1.0 - dot(vNormal, vView), 2.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+      fragmentShader: `
+      uniform vec3 fresnelColor;
+      varying float intensity;
+      void main() {
+        gl_FragColor = vec4(fresnelColor * intensity, intensity);
+      }
+    `,
+      transparent: true,
+      side: THREE.FrontSide,
+      blending: THREE.AdditiveBlending,
+    });
+    const fresnelGeometry = new THREE.SphereGeometry(1.01, 64, 64);
+    this.fresnelShell = new THREE.Mesh(fresnelGeometry, fresnelShaderMaterial);
+    this.scene.add(this.fresnelShell);
 
     // Lights
     const pointLight = new THREE.PointLight(0x00ffff, 1.5, 20);
@@ -99,13 +153,22 @@ export class HeroThreeComponent implements AfterViewInit, OnDestroy {
     const delta = this.clock.getDelta();
     const elapsed = this.clock.elapsedTime;
 
-    // Animate sphere and glow
     this.sphere.rotation.y += delta * 0.5;
     this.sphere.rotation.x = Math.sin(elapsed * 0.5) * 0.2;
     this.glowMesh.rotation.y -= delta * 0.3;
 
+    //Animate stars
+    this.stars.rotation.y += delta * 0.02;
+
+    // Pulse glow opacity
     const pulse = (Math.sin(elapsed * 2.5) + 1) * 0.15 + 0.2;
     (this.glowMesh.material as THREE.MeshBasicMaterial).opacity = pulse;
+
+    // Update fresnel view vector
+    const viewVector = this.camera.position.clone().sub(this.sphere.position);
+    (this.fresnelShell.material as THREE.ShaderMaterial).uniforms[
+      'viewVector'
+    ].value = viewVector;
 
     // Camera parallax
     this.camera.position.x +=
