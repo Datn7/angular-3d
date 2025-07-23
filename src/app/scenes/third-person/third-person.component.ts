@@ -101,6 +101,14 @@ export class ThirdPersonComponent implements AfterViewInit {
     const loader = new GLTFLoader();
     loader.load('/assets/scifi-girl.glb', (gltf) => {
       this.model = gltf.scene;
+
+      this.model.traverse((child) => {
+        // Check if it's a mesh and safely cast it
+        if ((child as THREE.Mesh).geometry && (child as any).isSkinnedMesh) {
+          (child as THREE.Object3D).rotation.y = Math.PI;
+        }
+      });
+
       this.model.position.set(0, 0, 0);
       this.scene.add(this.model);
 
@@ -139,8 +147,8 @@ export class ThirdPersonComponent implements AfterViewInit {
 
     // Camera-relative movement
     const cameraRotation = new THREE.Euler(0, this.cameraYaw, 0);
-    const forward = new THREE.Vector3(0, 0, -1).applyEuler(cameraRotation);
-    const right = new THREE.Vector3(1, 0, 0).applyEuler(cameraRotation);
+    const forward = new THREE.Vector3(0, 0, 1).applyEuler(cameraRotation);
+    const right = new THREE.Vector3(-1, 0, 0).applyEuler(cameraRotation);
 
     const direction = new THREE.Vector3();
     direction
