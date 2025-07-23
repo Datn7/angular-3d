@@ -36,8 +36,6 @@ export class ThirdPersonComponent implements AfterViewInit {
   private keys: Record<string, boolean> = {};
   private direction = new THREE.Vector3();
 
-  private isMouseDown = false;
-  private previousMouseX = 0;
   private cameraYaw = 0;
 
   constructor(
@@ -139,33 +137,27 @@ export class ThirdPersonComponent implements AfterViewInit {
 
     const moving = move.lengthSq() > 0;
 
-    // Calculate camera-facing direction
-    const cameraDir = new THREE.Vector3();
-    this.camera.getWorldDirection(cameraDir);
-    cameraDir.y = 0;
-    cameraDir.normalize();
-
-    // Calculate right vector
-    const right = new THREE.Vector3();
-    right.crossVectors(this.camera.up, cameraDir).normalize();
-
     // Camera-relative movement
-    const finalMove = new THREE.Vector3();
-    finalMove
-      .addScaledVector(cameraDir, move.z)
+    const cameraRotation = new THREE.Euler(0, this.cameraYaw, 0);
+    const forward = new THREE.Vector3(0, 0, -1).applyEuler(cameraRotation);
+    const right = new THREE.Vector3(1, 0, 0).applyEuler(cameraRotation);
+
+    const direction = new THREE.Vector3();
+    direction
+      .addScaledVector(forward, move.z)
       .addScaledVector(right, move.x)
-      .normalize()
-      .multiplyScalar(moveSpeed * delta);
+      .normalize();
 
-    // Apply movement
-    if (moving) {
-      this.model.position.add(finalMove);
+    if (moving && direction.lengthSq() > 0) {
+      this.model.position.add(
+        direction.clone().multiplyScalar(moveSpeed * delta)
+      );
 
-      // Face movement direction
+      // Rotate model toward direction
       const targetQuat = new THREE.Quaternion().setFromRotationMatrix(
         new THREE.Matrix4().lookAt(
           new THREE.Vector3(0, 0, 0),
-          finalMove.clone().normalize(),
+          direction,
           new THREE.Vector3(0, 1, 0)
         )
       );
@@ -176,13 +168,12 @@ export class ThirdPersonComponent implements AfterViewInit {
       this.setAction(this.idleAction);
     }
 
-    // Camera follows behind character
-    const offset = new THREE.Vector3(0, 2, 5).applyAxisAngle(
-      new THREE.Vector3(0, 1, 0),
-      this.cameraYaw
+    // Camera follows character
+    const camOffset = new THREE.Vector3(0, 2, 5).applyEuler(
+      new THREE.Euler(0, this.cameraYaw, 0)
     );
     const camTarget = this.model.position.clone();
-    this.camera.position.copy(camTarget.clone().add(offset));
+    this.camera.position.copy(camTarget.clone().add(camOffset));
     this.camera.lookAt(camTarget);
   }
 
@@ -194,7 +185,7 @@ export class ThirdPersonComponent implements AfterViewInit {
     }
   }
 
-  // Input: Keyboard
+  // Keyboard controls
   @HostListener('window:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
     this.keys[event.key.toLowerCase()] = true;
@@ -205,24 +196,10 @@ export class ThirdPersonComponent implements AfterViewInit {
     this.keys[event.key.toLowerCase()] = false;
   }
 
-  // Input: Mouse for camera look
-  @HostListener('window:mousedown', ['$event'])
-  onMouseDown(event: MouseEvent) {
-    this.isMouseDown = true;
-    this.previousMouseX = event.clientX;
-  }
-
-  @HostListener('window:mouseup')
-  onMouseUp() {
-    this.isMouseDown = false;
-  }
-
+  // Mouse move for camera yaw
   @HostListener('window:mousemove', ['$event'])
   onMouseMove(event: MouseEvent) {
-    if (!this.isMouseDown) return;
-
-    const deltaX = event.clientX - this.previousMouseX;
-    this.cameraYaw -= deltaX * 0.005;
-    this.previousMouseX = event.clientX;
+    const movementX = event.movementX || 0;
+    this.cameraYaw -= movementX * 0.002;
   }
 }
