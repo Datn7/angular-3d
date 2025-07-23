@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 @Component({
@@ -35,7 +34,6 @@ export class ThirdPersonComponent implements AfterViewInit {
   private currentAction!: THREE.AnimationAction;
   private keys: Record<string, boolean> = {};
 
-  private velocity = new THREE.Vector3();
   private direction = new THREE.Vector3();
 
   constructor(
@@ -67,7 +65,7 @@ export class ThirdPersonComponent implements AfterViewInit {
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(this.renderer.domElement);
 
-    // Light
+    // Lighting
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(5, 10, 7.5);
     this.scene.add(light);
@@ -81,7 +79,24 @@ export class ThirdPersonComponent implements AfterViewInit {
       new THREE.MeshStandardMaterial({ color: 0x999999 })
     );
     ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
     this.scene.add(ground);
+
+    // Add random boxes
+    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x88ccff });
+    for (let i = 0; i < 100; i++) {
+      const size = Math.random() * 1 + 0.5;
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(size, size, size),
+        boxMaterial
+      );
+      box.position.set(
+        (Math.random() - 0.5) * 100,
+        size / 2,
+        (Math.random() - 0.5) * 100
+      );
+      this.scene.add(box);
+    }
 
     // Load character
     const loader = new GLTFLoader();
@@ -93,9 +108,10 @@ export class ThirdPersonComponent implements AfterViewInit {
         }
       });
 
+      this.model.position.set(0, 0, 0);
       this.scene.add(this.model);
 
-      // Animation
+      // Animations
       this.mixer = new THREE.AnimationMixer(this.model);
       const clips = gltf.animations;
       this.walkAction = this.mixer.clipAction(
@@ -132,25 +148,25 @@ export class ThirdPersonComponent implements AfterViewInit {
 
     if (this.direction.length() > 0) {
       this.direction.normalize();
+
       const angle = Math.atan2(this.direction.x, this.direction.z);
       this.model.rotation.y = angle;
-      this.model.position.add(
-        this.direction
-          .clone()
-          .applyEuler(this.model.rotation)
-          .multiplyScalar(speed * delta)
-      );
 
+      const forward = new THREE.Vector3(0, 0, -1)
+        .applyQuaternion(this.model.quaternion)
+        .normalize();
+
+      this.model.position.add(forward.multiplyScalar(speed * delta));
       this.setAction(this.walkAction);
     } else {
       this.setAction(this.idleAction);
     }
 
-    // Camera follow
-    const offset = new THREE.Vector3(0, 2, 5).applyQuaternion(
+    // Camera follow: behind and slightly above
+    const camOffset = new THREE.Vector3(0, 2.5, -5).applyQuaternion(
       this.model.quaternion
     );
-    this.camera.position.copy(this.model.position.clone().add(offset));
+    this.camera.position.copy(this.model.position.clone().add(camOffset));
     this.camera.lookAt(this.model.position);
   }
 
