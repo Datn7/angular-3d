@@ -12,6 +12,7 @@ import {
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 @Component({
   selector: 'app-third-person',
@@ -32,8 +33,9 @@ export class ThirdPersonComponent implements AfterViewInit {
   private walkAction!: THREE.AnimationAction;
   private idleAction!: THREE.AnimationAction;
   private currentAction!: THREE.AnimationAction;
-  private keys: Record<string, boolean> = {};
+  private controls!: OrbitControls;
 
+  private keys: Record<string, boolean> = {};
   private direction = new THREE.Vector3();
 
   constructor(
@@ -65,7 +67,15 @@ export class ThirdPersonComponent implements AfterViewInit {
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(this.renderer.domElement);
 
-    // Lighting
+    // Orbit Controls
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.enablePan = false;
+    this.controls.maxPolarAngle = Math.PI / 2;
+    this.controls.target.set(0, 1, 0);
+    this.controls.update();
+
+    // Lights
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(5, 10, 7.5);
     this.scene.add(light);
@@ -132,6 +142,7 @@ export class ThirdPersonComponent implements AfterViewInit {
     if (this.mixer) this.mixer.update(delta);
 
     this.updateControls(delta);
+    this.controls?.update();
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -146,23 +157,28 @@ export class ThirdPersonComponent implements AfterViewInit {
     if (this.keys['a']) this.direction.x -= 1;
     if (this.keys['d']) this.direction.x += 1;
 
-    if (this.direction.length() > 0) {
+    if (this.direction.lengthSq() > 0.01) {
       this.direction.normalize();
 
-      const angle = Math.atan2(this.direction.x, this.direction.z);
-      this.model.rotation.y = angle;
+      // Smooth rotation toward direction
+      const targetAngle = Math.atan2(this.direction.x, this.direction.z);
+      const targetQuat = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(0, targetAngle, 0)
+      );
+      this.model.quaternion.slerp(targetQuat, 0.15);
 
+      // Move forward
       const forward = new THREE.Vector3(0, 0, -1)
         .applyQuaternion(this.model.quaternion)
         .normalize();
-
       this.model.position.add(forward.multiplyScalar(speed * delta));
+
       this.setAction(this.walkAction);
     } else {
       this.setAction(this.idleAction);
     }
 
-    // Camera follow: behind and slightly above
+    // Camera follow from behind
     const camOffset = new THREE.Vector3(0, 2.5, -5).applyQuaternion(
       this.model.quaternion
     );
