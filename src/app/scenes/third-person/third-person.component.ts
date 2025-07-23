@@ -12,7 +12,6 @@ import {
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 @Component({
   selector: 'app-third-person',
@@ -33,10 +32,13 @@ export class ThirdPersonComponent implements AfterViewInit {
   private walkAction!: THREE.AnimationAction;
   private idleAction!: THREE.AnimationAction;
   private currentAction!: THREE.AnimationAction;
-  private controls!: OrbitControls;
 
   private keys: Record<string, boolean> = {};
   private direction = new THREE.Vector3();
+
+  private isMouseDown = false;
+  private previousMouseX = 0;
+  private cameraYaw = 0;
 
   constructor(
     private ngZone: NgZone,
@@ -67,21 +69,11 @@ export class ThirdPersonComponent implements AfterViewInit {
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(this.renderer.domElement);
 
-    // Orbit Controls
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.enablePan = false;
-    this.controls.maxPolarAngle = Math.PI / 2;
-    this.controls.target.set(0, 1, 0);
-    this.controls.update();
-
-    // Lights
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(5, 10, 7.5);
-    this.scene.add(light);
-
-    const ambient = new THREE.AmbientLight(0x404040);
-    this.scene.add(ambient);
+    // Lighting
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 10, 5);
+    this.scene.add(dirLight);
 
     // Ground
     const ground = new THREE.Mesh(
@@ -89,16 +81,15 @@ export class ThirdPersonComponent implements AfterViewInit {
       new THREE.MeshStandardMaterial({ color: 0x999999 })
     );
     ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
     this.scene.add(ground);
 
     // Add random boxes
-    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x88ccff });
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0x88ccff });
     for (let i = 0; i < 100; i++) {
-      const size = Math.random() * 1 + 0.5;
+      const size = Math.random() + 0.5;
       const box = new THREE.Mesh(
         new THREE.BoxGeometry(size, size, size),
-        boxMaterial
+        boxMat
       );
       box.position.set(
         (Math.random() - 0.5) * 100,
@@ -108,24 +99,17 @@ export class ThirdPersonComponent implements AfterViewInit {
       this.scene.add(box);
     }
 
-    // Load character
+    // Load model
     const loader = new GLTFLoader();
     loader.load('/assets/scifi-girl.glb', (gltf) => {
       this.model = gltf.scene;
-      this.model.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          (child as THREE.Mesh).castShadow = true;
-        }
-      });
-
       this.model.position.set(0, 0, 0);
       this.scene.add(this.model);
 
-      // Animations
       this.mixer = new THREE.AnimationMixer(this.model);
       const clips = gltf.animations;
       this.walkAction = this.mixer.clipAction(
-        clips.find((c) => c.name.toLowerCase().includes('walk'))!
+        clips.find((clip) => clip.name.toLowerCase().includes('walk'))!
       );
       this.idleAction = this.mixer.clipAction(clips[0]);
       this.idleAction.play();
@@ -134,56 +118,72 @@ export class ThirdPersonComponent implements AfterViewInit {
   }
 
   animate = () => {
-    this.ngZone.runOutsideAngular(() => {
-      requestAnimationFrame(this.animate);
-    });
+    this.ngZone.runOutsideAngular(() => requestAnimationFrame(this.animate));
 
     const delta = this.clock.getDelta();
-    if (this.mixer) this.mixer.update(delta);
-
-    this.updateControls(delta);
-    this.controls?.update();
+    this.mixer?.update(delta);
+    this.updateMovement(delta);
     this.renderer.render(this.scene, this.camera);
   };
 
-  updateControls(delta: number) {
+  updateMovement(delta: number) {
     if (!this.model) return;
 
-    const speed = 3;
-    this.direction.set(0, 0, 0);
+    const moveSpeed = 4;
+    const move = new THREE.Vector3();
 
-    if (this.keys['w']) this.direction.z -= 1;
-    if (this.keys['s']) this.direction.z += 1;
-    if (this.keys['a']) this.direction.x -= 1;
-    if (this.keys['d']) this.direction.x += 1;
+    if (this.keys['w']) move.z -= 1;
+    if (this.keys['s']) move.z += 1;
+    if (this.keys['a']) move.x -= 1;
+    if (this.keys['d']) move.x += 1;
 
-    if (this.direction.lengthSq() > 0.01) {
-      this.direction.normalize();
+    const moving = move.lengthSq() > 0;
 
-      // Smooth rotation toward direction
-      const targetAngle = Math.atan2(this.direction.x, this.direction.z);
-      const targetQuat = new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(0, targetAngle, 0)
+    // Calculate camera-facing direction
+    const cameraDir = new THREE.Vector3();
+    this.camera.getWorldDirection(cameraDir);
+    cameraDir.y = 0;
+    cameraDir.normalize();
+
+    // Calculate right vector
+    const right = new THREE.Vector3();
+    right.crossVectors(this.camera.up, cameraDir).normalize();
+
+    // Camera-relative movement
+    const finalMove = new THREE.Vector3();
+    finalMove
+      .addScaledVector(cameraDir, move.z)
+      .addScaledVector(right, move.x)
+      .normalize()
+      .multiplyScalar(moveSpeed * delta);
+
+    // Apply movement
+    if (moving) {
+      this.model.position.add(finalMove);
+
+      // Face movement direction
+      const targetQuat = new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().lookAt(
+          new THREE.Vector3(0, 0, 0),
+          finalMove.clone().normalize(),
+          new THREE.Vector3(0, 1, 0)
+        )
       );
       this.model.quaternion.slerp(targetQuat, 0.15);
-
-      // Move forward
-      const forward = new THREE.Vector3(0, 0, -1)
-        .applyQuaternion(this.model.quaternion)
-        .normalize();
-      this.model.position.add(forward.multiplyScalar(speed * delta));
 
       this.setAction(this.walkAction);
     } else {
       this.setAction(this.idleAction);
     }
 
-    // Camera follow from behind
-    const camOffset = new THREE.Vector3(0, 2.5, -5).applyQuaternion(
-      this.model.quaternion
+    // Camera follows behind character
+    const offset = new THREE.Vector3(0, 2, 5).applyAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      this.cameraYaw
     );
-    this.camera.position.copy(this.model.position.clone().add(camOffset));
-    this.camera.lookAt(this.model.position);
+    const camTarget = this.model.position.clone();
+    this.camera.position.copy(camTarget.clone().add(offset));
+    this.camera.lookAt(camTarget);
   }
 
   setAction(action: THREE.AnimationAction) {
@@ -194,6 +194,7 @@ export class ThirdPersonComponent implements AfterViewInit {
     }
   }
 
+  // Input: Keyboard
   @HostListener('window:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
     this.keys[event.key.toLowerCase()] = true;
@@ -202,5 +203,26 @@ export class ThirdPersonComponent implements AfterViewInit {
   @HostListener('window:keyup', ['$event'])
   onKeyUp(event: KeyboardEvent) {
     this.keys[event.key.toLowerCase()] = false;
+  }
+
+  // Input: Mouse for camera look
+  @HostListener('window:mousedown', ['$event'])
+  onMouseDown(event: MouseEvent) {
+    this.isMouseDown = true;
+    this.previousMouseX = event.clientX;
+  }
+
+  @HostListener('window:mouseup')
+  onMouseUp() {
+    this.isMouseDown = false;
+  }
+
+  @HostListener('window:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent) {
+    if (!this.isMouseDown) return;
+
+    const deltaX = event.clientX - this.previousMouseX;
+    this.cameraYaw -= deltaX * 0.005;
+    this.previousMouseX = event.clientX;
   }
 }
