@@ -6,6 +6,7 @@ import { AnimationClipComponent } from './scenes/animation-clip/animation-clip.c
 import { AnimationMixerComponent } from './scenes/animation-mixer/animation-mixer.component';
 import { AnimationObjctGroupComponent } from './scenes/animation-objct-group/animation-objct-group.component';
 import { ThirdPersonComponent } from './scenes/third-person/third-person.component';
+import { AframeArComponent } from './scenes/aframe-ar/aframe-ar.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'helmet', pathMatch: 'full' },
@@ -16,5 +17,6 @@ export const routes: Routes = [
   { path: 'animation-mixer', component: AnimationMixerComponent },
   { path: 'animation-objct-group', component: AnimationObjctGroupComponent },
   { path: 'third-person', component: ThirdPersonComponent },
+  { path: 'aframe', component: AframeArComponent },
   { path: '**', redirectTo: 'hero-three' },
 ];
