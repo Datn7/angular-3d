@@ -5,6 +5,7 @@ import { HeroThreeComponent } from './scenes/hero-three/hero-three.component';
 import { AnimationClipComponent } from './scenes/animation-clip/animation-clip.component';
 import { AnimationMixerComponent } from './scenes/animation-mixer/animation-mixer.component';
 import { AnimationObjctGroupComponent } from './scenes/animation-objct-group/animation-objct-group.component';
+import { ThirdPersonComponent } from './scenes/third-person/third-person.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'helmet', pathMatch: 'full' },
@@ -14,5 +15,6 @@ export const routes: Routes = [
   { path: 'animation-clip', component: AnimationClipComponent },
   { path: 'animation-mixer', component: AnimationMixerComponent },
   { path: 'animation-objct-group', component: AnimationObjctGroupComponent },
+  { path: 'third-person', component: ThirdPersonComponent },
   { path: '**', redirectTo: 'hero-three' },
 ];

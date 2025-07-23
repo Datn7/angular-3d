@@ -1,0 +1,174 @@
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  HostListener,
+  Inject,
+  NgZone,
+  PLATFORM_ID,
+  ViewChild,
+} from '@angular/core';
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+@Component({
+  selector: 'app-third-person',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './third-person.component.html',
+  styleUrl: './third-person.component.scss',
+})
+export class ThirdPersonComponent implements AfterViewInit {
+  @ViewChild('canvasContainer', { static: true }) canvasRef!: ElementRef;
+
+  private scene = new THREE.Scene();
+  private camera!: THREE.PerspectiveCamera;
+  private renderer!: THREE.WebGLRenderer;
+  private mixer!: THREE.AnimationMixer;
+  private clock = new THREE.Clock();
+  private model!: THREE.Object3D;
+  private walkAction!: THREE.AnimationAction;
+  private idleAction!: THREE.AnimationAction;
+  private currentAction!: THREE.AnimationAction;
+  private keys: Record<string, boolean> = {};
+
+  private velocity = new THREE.Vector3();
+  private direction = new THREE.Vector3();
+
+  constructor(
+    private ngZone: NgZone,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {}
+
+  ngAfterViewInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      this.initScene();
+      this.animate();
+    }
+  }
+
+  initScene() {
+    const container = this.canvasRef.nativeElement;
+
+    // Camera
+    this.camera = new THREE.PerspectiveCamera(
+      60,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      1000
+    );
+    this.camera.position.set(0, 2, 5);
+
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(this.renderer.domElement);
+
+    // Light
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(5, 10, 7.5);
+    this.scene.add(light);
+
+    const ambient = new THREE.AmbientLight(0x404040);
+    this.scene.add(ambient);
+
+    // Ground
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(100, 100),
+      new THREE.MeshStandardMaterial({ color: 0x999999 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    this.scene.add(ground);
+
+    // Load character
+    const loader = new GLTFLoader();
+    loader.load('/assets/scifi-girl.glb', (gltf) => {
+      this.model = gltf.scene;
+      this.model.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          (child as THREE.Mesh).castShadow = true;
+        }
+      });
+
+      this.scene.add(this.model);
+
+      // Animation
+      this.mixer = new THREE.AnimationMixer(this.model);
+      const clips = gltf.animations;
+      this.walkAction = this.mixer.clipAction(
+        clips.find((c) => c.name.toLowerCase().includes('walk'))!
+      );
+      this.idleAction = this.mixer.clipAction(clips[0]);
+      this.idleAction.play();
+      this.currentAction = this.idleAction;
+    });
+  }
+
+  animate = () => {
+    this.ngZone.runOutsideAngular(() => {
+      requestAnimationFrame(this.animate);
+    });
+
+    const delta = this.clock.getDelta();
+    if (this.mixer) this.mixer.update(delta);
+
+    this.updateControls(delta);
+    this.renderer.render(this.scene, this.camera);
+  };
+
+  updateControls(delta: number) {
+    if (!this.model) return;
+
+    const speed = 3;
+    this.direction.set(0, 0, 0);
+
+    if (this.keys['w']) this.direction.z -= 1;
+    if (this.keys['s']) this.direction.z += 1;
+    if (this.keys['a']) this.direction.x -= 1;
+    if (this.keys['d']) this.direction.x += 1;
+
+    if (this.direction.length() > 0) {
+      this.direction.normalize();
+      const angle = Math.atan2(this.direction.x, this.direction.z);
+      this.model.rotation.y = angle;
+      this.model.position.add(
+        this.direction
+          .clone()
+          .applyEuler(this.model.rotation)
+          .multiplyScalar(speed * delta)
+      );
+
+      this.setAction(this.walkAction);
+    } else {
+      this.setAction(this.idleAction);
+    }
+
+    // Camera follow
+    const offset = new THREE.Vector3(0, 2, 5).applyQuaternion(
+      this.model.quaternion
+    );
+    this.camera.position.copy(this.model.position.clone().add(offset));
+    this.camera.lookAt(this.model.position);
+  }
+
+  setAction(action: THREE.AnimationAction) {
+    if (this.currentAction !== action) {
+      this.currentAction.fadeOut(0.2);
+      action.reset().fadeIn(0.2).play();
+      this.currentAction = action;
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    this.keys[event.key.toLowerCase()] = true;
+  }
+
+  @HostListener('window:keyup', ['$event'])
+  onKeyUp(event: KeyboardEvent) {
+    this.keys[event.key.toLowerCase()] = false;
+  }
+}
