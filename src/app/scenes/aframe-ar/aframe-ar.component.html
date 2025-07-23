@@ -1,24 +1,26 @@
 <a-scene
   webxr="optionalFeatures: hit-test; mode: ar"
+  embedded
   ar-hit-test
   renderer="colorManagement: true; physicallyCorrectLights: true"
   vr-mode-ui="enabled: false"
-  embedded
 >
+  <!-- Camera -->
   <a-camera position="0 0 0" look-controls></a-camera>
 
+  <!-- Reticle -->
   <a-entity
     id="reticle"
-    geometry="primitive: ring, radiusInner: 0.05, radiusOuter: 0.06"
+    geometry="primitive: ring; radiusInner: 0.05; radiusOuter: 0.06"
     material="color: green; shader: flat"
     position="0 0 -1"
     visible="false"
-  >
-  </a-entity>
+  ></a-entity>
 
+  <!-- 3D Model -->
   <a-entity
     id="model"
-    gltf-model="assets/model.glb"
+    gltf-model="assets/scifi-girl.glb"
     scale="0.5 0.5 0.5"
     visible="false"
   ></a-entity>

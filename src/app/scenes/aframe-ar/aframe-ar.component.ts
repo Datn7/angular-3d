@@ -2,6 +2,8 @@ import {
   AfterViewInit,
   Component,
   CUSTOM_ELEMENTS_SCHEMA,
+  Inject,
+  PLATFORM_ID,
 } from '@angular/core';
 
 @Component({
@@ -13,6 +15,8 @@ import {
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class AframeArComponent implements AfterViewInit {
+  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
+
   ngAfterViewInit(): void {
     const sceneEl = document.querySelector('a-scene') as any;
 
