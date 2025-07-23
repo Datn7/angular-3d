@@ -14,14 +14,19 @@
   font-family: "Courier New", Courier, monospace;
   z-index: 100;
 
-  a {
+  a,
+  .dropdown-button {
     color: #00ffff;
     text-decoration: none;
     padding: 0.5rem 1rem;
     border: 1px solid #00ffff55;
     border-radius: 4px;
     text-align: center;
+    background: transparent;
     transition: background 0.3s, border-color 0.3s;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1rem;
 
     &:hover {
       background: #00ffff22;
@@ -31,6 +36,42 @@
     &.active {
       background: #00ffff44;
       border-color: #00ffff;
+    }
+  }
+
+  .dropdown {
+    position: relative;
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 110%;
+      left: 0;
+      background: rgba(0, 0, 20, 0.95);
+      border: 1px solid #00ffff;
+      border-radius: 6px;
+      min-width: 200px;
+      z-index: 200;
+      box-shadow: 0 4px 12px rgba(0, 255, 255, 0.25);
+
+      a {
+        display: block;
+        padding: 0.5rem 1rem;
+        border: none;
+        text-align: left;
+
+        &:hover {
+          background: #00ffff11;
+        }
+
+        &.active {
+          background: #00ffff33;
+        }
+      }
+    }
+
+    &:hover .dropdown-content {
+      display: block;
     }
   }
 }

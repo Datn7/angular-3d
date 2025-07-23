@@ -1,8 +1,20 @@
 <nav class="sci-fi-nav">
   <a routerLink="/helmet" routerLinkActive="active">Helmet Viewer</a>
-  <a routerLink="/animation-action" routerLinkActive="active"
-    >Animation Action</a
-  >
+
+  <div class="dropdown">
+    <button class="dropdown-button">Animation ▼</button>
+    <div class="dropdown-content">
+      <a routerLink="/animation-action" routerLinkActive="active"
+        >Animation Action</a
+      >
+      <a routerLink="/animation-clip" routerLinkActive="active"
+        >Animation Clip</a
+      >
+      <a routerLink="/animation-mixer" routerLinkActive="active"
+        >Animation Mixer</a
+      >
+    </div>
+  </div>
+
   <a routerLink="/hero-three" routerLinkActive="active">Hero Three</a>
-  <a routerLink="/animation-clip" routerLinkActive="active">Animation Clip</a>
 </nav>
